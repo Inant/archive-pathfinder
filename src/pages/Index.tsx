@@ -82,6 +82,7 @@ export interface Statistics {
   };
 }
 
+
 const Index = () => {
   // State management
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
@@ -90,6 +91,7 @@ const Index = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [fileData, setFileData] = useState<FileData | null>(null);
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [statistics, setStatistics] = useState<Statistics>({
     totalBookings: 0,
     totalFiles: 0,
@@ -134,6 +136,7 @@ const Index = () => {
   // Memuat struktur folder untuk sidebar
   const loadFolderStructure = async () => {
     try {
+      console.log('Loading folder structure...');
       const response = await folderService.getFolderTree();
       const folders = response.data.data;
 
@@ -145,24 +148,32 @@ const Index = () => {
 
       // Fungsi rekursif untuk memproses folder dan subfolder
       const processFolder = (folder: FolderItem, parentPath = '/') => {
+        // Log untuk debugging
+        console.log('Processing folder:', { name: folder.name, path: folder.path, id: folder.id });
+
         // Pastikan folder memiliki tipe
         folder.type = 'folder';
 
-        // Simpan path lengkap folder
-        const folderPath = folder.path || parentPath;
+        // Pastikan path ada
+        if (!folder.path) {
+          folder.path = parentPath;
+        }
 
         // Pastikan array untuk parent path sudah ada
         if (!structure[parentPath]) {
           structure[parentPath] = [];
         }
 
-        // Tambahkan folder ke parent path-nya
-        structure[parentPath].push(folder);
+        // Cek apakah folder sudah ada di struktur (hindari duplikasi)
+        const folderExists = structure[parentPath].some(f => f.id === folder.id);
+        if (!folderExists) {
+          structure[parentPath].push({ ...folder }); // Salin objek untuk menghindari referensi yang sama
+        }
 
         // Proses children jika ada
         if (folder.children && folder.children.length > 0) {
           // Path untuk child akan jadi folderPath + folder.name + '/'
-          const childParentPath = folderPath + folder.name + '/';
+          const childParentPath = folder.path + folder.name + '/';
 
           // Inisialisasi struktur untuk child path
           if (!structure[childParentPath]) {
@@ -171,23 +182,29 @@ const Index = () => {
 
           // Proses setiap child folder
           folder.children.forEach(childFolder => {
-            processFolder(childFolder, childParentPath);
+            // Pastikan child folder memiliki path
+            if (!childFolder.path) {
+              childFolder.path = childParentPath;
+            }
+            processFolder({ ...childFolder }, childParentPath); // Salin objek untuk menghindari referensi yang sama
           });
         }
       };
 
-      // Proses folder root
+      // Proses folder root dan log
+      console.log('Root folders:', folders.length);
       folders.forEach(folder => {
-        processFolder(folder);
+        processFolder({ ...folder }); // Salin objek untuk menghindari referensi yang sama
       });
 
-      console.log('Folder structure:', structure);
+      console.log('Folder structure processed:', Object.keys(structure).length, 'paths');
       setFolderStructure(structure);
     } catch (error) {
       console.error('Error loading folder structure:', error);
-      toast.error('Failed to load folder structure');
+      toast.error('Gagal memuat struktur folder');
     }
   };
+
 
   // Memuat konten folder saat ini
   const loadCurrentFolder = async () => {
@@ -207,7 +224,7 @@ const Index = () => {
         const { subfolders, files } = response.data.data;
 
         // Gabungkan subfolder dan file
-        const items = [
+        let items = [
           ...subfolders.map((folder: FolderItem) => ({
             ...folder,
             type: 'folder'
@@ -217,6 +234,35 @@ const Index = () => {
             type: 'file'
           }))
         ];
+
+        // Jika filter tag aktif, terapkan pada file
+        if (selectedTagIds.length > 0) {
+          // Dapatkan file yang memiliki semua tag yang dipilih
+          const filteredFiles = files.filter((file: FileItem) => {
+            if (!file.tags) return false;
+            // Periksa apakah file memiliki semua tag yang dipilih
+            return selectedTagIds.every(tagId =>
+              file.tags!.some(tag => tag.id === tagId)
+            );
+          });
+
+          items = [
+            ...items,
+            ...filteredFiles.map((file: FileItem) => ({
+              ...file,
+              type: 'file'
+            }))
+          ];
+        } else {
+          // Tanpa filter, tampilkan semua file
+          items = [
+            ...items,
+            ...files.map((file: FileItem) => ({
+              ...file,
+              type: 'file'
+            }))
+          ];
+        }
 
         setCurrentItems(items);
       }
@@ -296,17 +342,22 @@ const Index = () => {
     }
   };
 
-  // Load data saat komponen dimount
+  // Load data saat komponen dimount dengan dependency yang benar
   useEffect(() => {
-    loadFolderStructure();
-    loadStatistics();
-    loadCurrentFolder();
-  }, []);
+    // Memuat struktur folder
+    loadFolderStructure().then(() => {
+      // Setelah struktur folder dimuat, load statistik dan konten folder saat ini
+      loadStatistics();
+      loadCurrentFolder();
+    });
+  }, []); // Hanya sekali saat komponen dimount
 
-  // Reload folder saat ID folder berubah
+  // Reload folder saat ID folder berubah dengan useEffect terpisah
   useEffect(() => {
-    loadCurrentFolder();
-  }, [selectedFolderId]);
+    if (selectedFolderId !== null) {
+      loadCurrentFolder();
+    }
+  }, [selectedFolderId]); // Hanya ketika selectedFolderId berubah
 
   return (
       <div className="h-screen flex flex-col bg-white">

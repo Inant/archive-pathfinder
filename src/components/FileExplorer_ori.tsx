@@ -77,15 +77,17 @@ const FileExplorer: React.FC<FileExplorerProps> = ({
       <div className="bg-white border-b border-gray-100 p-4 flex items-center justify-between">
         <div className="flex items-center space-x-2">
           {breadcrumbs.map((crumb, index) => (
-            <React.Fragment key={crumb.path}>
-              <button 
-                onClick={() => navigateTo(crumb.path)}
+            // Jangan menggunakan <React.Fragment> dengan data-lov-id atau atribut lain
+            // Gunakan <div> atau elemen lain untuk atribut data-*
+            <div key={index} className="flex items-center">
+              <button
+                onClick={() => navigateTo(crumb.id, crumb.path)}
                 className="hover:text-blue-600 text-sm font-medium transition-colors breadcrumb-item px-2"
               >
                 {crumb.name}
               </button>
               {index < breadcrumbs.length - 1 && <ChevronRight className="w-4 h-4 text-gray-400" />}
-            </React.Fragment>
+            </div>
           ))}
         </div>
         
