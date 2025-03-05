@@ -17,7 +17,7 @@ const FilePreview: React.FC<FilePreviewProps> = ({ fileData, onClose }) => {
     try {
       // Buat URL download
       const downloadUrl = fileService.getDownloadUrl(fileData.id);
-
+      
       // Buat elemen anchor dan trigger download
       const link = document.createElement('a');
       link.href = downloadUrl;
@@ -25,10 +25,10 @@ const FilePreview: React.FC<FilePreviewProps> = ({ fileData, onClose }) => {
       link.setAttribute('target', '_blank');
       document.body.appendChild(link);
       link.click();
-
+      
       // Bersihkan elemen
       document.body.removeChild(link);
-
+      
       toast.success(`Mengunduh ${fileData.original_name}`);
     } catch (error) {
       console.error('Error downloading file:', error);
@@ -54,20 +54,20 @@ const FilePreview: React.FC<FilePreviewProps> = ({ fileData, onClose }) => {
   // Render preview berdasarkan tipe file
   const renderFileContent = () => {
     const extension = fileData.original_name.split('.').pop()?.toLowerCase();
-
+    
     // Preview untuk gambar
     if (['jpg', 'jpeg', 'png', 'gif'].includes(extension || '')) {
       return (
         <div className="flex justify-center items-center p-4 bg-gray-50 rounded-lg border border-gray-100 min-h-[200px]">
-          <img
-            src={fileService.getDownloadUrl(fileData.id)}
+          <img 
+            src={fileService.getDownloadUrl(fileData.id)} 
             alt={fileData.original_name}
             className="max-w-full max-h-[400px] object-contain"
           />
         </div>
       );
     }
-
+    
     // Preview untuk tipe file lainnya
     return (
       <div className="p-6 bg-gray-50 rounded-lg border border-gray-100 min-h-[200px] flex flex-col items-center justify-center">
@@ -104,7 +104,7 @@ const FilePreview: React.FC<FilePreviewProps> = ({ fileData, onClose }) => {
       {/* Content */}
       <div className="p-6">
         {renderFileContent()}
-
+        
         {/* Tags (if available) */}
         {fileData.tags && fileData.tags.length > 0 && (
           <div className="mt-4 mb-6">
