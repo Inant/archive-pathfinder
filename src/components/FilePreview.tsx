@@ -72,10 +72,7 @@ const FilePreview: React.FC<FilePreviewProps> = ({ fileData, onClose }) => {
     return (
       <div className="p-6 bg-gray-50 rounded-lg border border-gray-100 min-h-[200px] flex flex-col items-center justify-center">
         {getFileIcon()}
-        <p className="mt-4 text-gray-600 text-center">
-          Preview tidak tersedia untuk file ini.<br />
-          Silahkan download file untuk melihat isinya.
-        </p>
+        <iframe src={`https://docs.google.com/gview?url=${fileService.getDownloadUrl(fileData.id) }&embedded=true`} width="600px" height="500px" frameBorder="0"></iframe>
       </div>
     );
   };
