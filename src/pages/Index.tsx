@@ -87,7 +87,7 @@ const Index = () => {
   // State management
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
   const [currentPath, setCurrentPath] = useState('/');
-  const [breadcrumbs, setBreadcrumbs] = useState([{ name: 'Home', path: '/', id: null }]);
+  const [breadcrumbs, setBreadcrumbs] = useState([{ name: 'Back', path: '/', id: null }]);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [fileData, setFileData] = useState<FileData | null>(null);
@@ -282,46 +282,71 @@ const Index = () => {
       : currentItems;
 
   // Navigasi ke folder
+  // Fungsi navigasi yang direvisi untuk breadcrumb yang berfungsi dengan baik
   const navigateTo = async (folderId: number | null, path: string) => {
     setSelectedFolderId(folderId);
     setCurrentPath(path);
+    setLoading(true);
 
     try {
-      let newBreadcrumbs = [{ name: 'Home', path: '/', id: null }];
+      if (folderId === null) {
+        // Root folder, hanya tampilkan Home
+        setBreadcrumbs([{ name: 'Back', path: '/', id: null }]);
+      } else {
+        // Dapatkan detail folder dengan relasi parent
+        const response = await folderService.getFolder(folderId);
+        const folder = response.data.data;
 
-      if (folderId !== null) {
-        // Dapatkan detail folder untuk breadcrumbs
-        const response = await folderService.getFolderContents(folderId);
-        const folder = response.data.data.folder;
+        // Mulai dengan Home
+        const newBreadcrumbs = [{ name: 'Back', path: '/', id: null }];
 
-        // Bangun breadcrumbs dari path folder
-        const pathParts = folder.path.split('/').filter(Boolean);
-        let currentPath = '/';
+        // Jika kita punya detail folder
+        if (folder) {
+          // Bangun breadcrumb dari folder saat ini ke atas
+          const folderChain = [];
+          let currentFolder = folder;
 
-        for (let i = 0; i < pathParts.length; i++) {
-          currentPath += pathParts[i] + '/';
-          // Dalam implementasi nyata, Anda perlu mendapatkan ID untuk setiap bagian path
-          // Ini adalah simulasi untuk contoh
-          newBreadcrumbs.push({
-            name: pathParts[i],
-            path: currentPath,
-            id: 0 // Placeholder ID
+          // Tambahkan folder saat ini
+          folderChain.unshift({
+            name: currentFolder.name,
+            path: currentFolder.path + currentFolder.name + '/',
+            id: currentFolder.id
           });
+
+          // Telusuri parent sampai root
+          while (currentFolder.parent_id !== null) {
+            try {
+              // Dapatkan parent folder
+              const parentResponse = await folderService.getFolder(currentFolder.parent_id);
+              currentFolder = parentResponse.data.data;
+
+              // Tambahkan parent ke folderChain
+              folderChain.unshift({
+                name: currentFolder.name,
+                path: currentFolder.path + currentFolder.name + '/',
+                id: currentFolder.id
+              });
+            } catch (e) {
+              console.error('Error getting parent folder:', e);
+              break;
+            }
+          }
+
+          // Gabungkan breadcrumbs
+          newBreadcrumbs.push(...folderChain);
         }
 
-        // Tambahkan folder saat ini
-        newBreadcrumbs.push({
-          name: folder.name,
-          path: folder.path + folder.name + '/',
-          id: folder.id
-        });
+        // Set breadcrumbs
+        setBreadcrumbs(newBreadcrumbs);
       }
 
-      setBreadcrumbs(newBreadcrumbs);
-      loadCurrentFolder();
+      // Muat konten folder
+      await loadCurrentFolder();
     } catch (error) {
       console.error('Error navigating to folder:', error);
-      toast.error('Failed to navigate to folder');
+      // toast.error('Failed to navigate to folder');
+    } finally {
+      setLoading(false);
     }
   };
 
